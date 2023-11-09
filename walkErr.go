@@ -31,15 +31,17 @@ type FuncError struct {
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	programLevel := new(slog.LevelVar)
-	handler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})
+	handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})
 	slog.SetDefault(slog.New(handler))
 	logger := slog.New(handler)
 
 	for _, f := range pass.Files {
+		logger.Info("start to inspect", "file", pass.Fset.File(f.Pos()).Name())
 		errList, err := Inspect(pass, f, logger)
 		if err != nil {
 			return nil, err
 		}
+
 		for _, v := range errList {
 			msg := make([]string, 0, len(v.Errors))
 			for _, item := range v.CallFuncs {
@@ -83,9 +85,11 @@ func InspectFunction(pass *analysis.Pass, funcDecl *ast.FuncDecl, logger *slog.L
 	funcList := make([]*ast.Ident, 0, 0)
 
 	walk := func(n ast.Node) bool {
+		logger.Info("walk", "node", fmt.Sprintf("%#v", n))
 		switch n := n.(type) {
 		case *ast.ReturnStmt:
 			for _, result := range n.Results {
+				logger.Info("check return item", "item", fmt.Sprintf("%#v", result))
 				switch result := result.(type) {
 				case *ast.Ident:
 					obj := info.ObjectOf(result)
@@ -104,6 +108,7 @@ func InspectFunction(pass *analysis.Pass, funcDecl *ast.FuncDecl, logger *slog.L
 					logger.Info("callExpr.Fun", "value", fmt.Sprintf("%#v", result.Fun))
 					if fun, ok := result.Fun.(*ast.Ident); ok {
 						funcList = append(funcList, fun)
+						logger.Info("append func list", "name", fmt.Sprintf("%#v", fun))
 					}
 				}
 			}
@@ -130,7 +135,8 @@ func Inspect(pass *analysis.Pass, f *ast.File, logger *slog.Logger) (map[string]
 				}
 				return false
 			}) {
-				logger.Error("find function", "func", fmt.Sprintf("%#v", funcDecl))
+				logger.Info("find function", "func", fmt.Sprintf("%#v", funcDecl))
+
 				errList, callFuncs, err := InspectFunction(pass, funcDecl, logger)
 				if err != nil {
 					logger.Error("inspect function", "err", fmt.Sprintf("%v", err))
