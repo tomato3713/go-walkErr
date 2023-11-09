@@ -11,7 +11,7 @@ func afunc() error { // want "return errors: e.AError"
 	return AError
 }
 
-func bfunc(b int) error { // want "return errors: e.AError, sube.AError"
+func bfunc(b int) error { // want "return errors: e.AError, sube.AFunc()"
 	if b == 0 {
 		return afunc()
 	}
