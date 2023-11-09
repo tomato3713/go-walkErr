@@ -25,3 +25,8 @@ func Test_d(t *testing.T) {
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, Analyzer, "d")
 }
+
+func Test_e(t *testing.T) {
+	testdata := analysistest.TestData()
+	analysistest.Run(t, testdata, Analyzer, "e")
+}
