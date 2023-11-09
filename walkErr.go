@@ -48,6 +48,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				logger.Info("search error", "func", fmt.Sprintf("%#v", item))
 				obj := pass.TypesInfo.ObjectOf(item)
 				if obj == nil {
+					logger.Error("skip error function", "func", fmt.Sprintf("%#v", item))
 					continue
 				}
 				name := fmt.Sprintf("%s.%s", obj.Pkg().Name(), obj.Name())
@@ -60,6 +61,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 						}
 						msg = append(msg, fmt.Sprintf("%s.%s", obj.Pkg().Name(), obj.Name()))
 					}
+				} else {
+					logger.Info("cannot find", "func", name)
+					msg = append(msg, name)
 				}
 			}
 
@@ -105,10 +109,19 @@ func InspectFunction(pass *analysis.Pass, funcDecl *ast.FuncDecl, logger *slog.L
 						}
 					}
 				case *ast.CallExpr:
-					logger.Info("callExpr.Fun", "value", fmt.Sprintf("%#v", result.Fun))
-					if fun, ok := result.Fun.(*ast.Ident); ok {
-						funcList = append(funcList, fun)
-						logger.Info("append func list", "name", fmt.Sprintf("%#v", fun))
+					// CallExpr: method(), pkg.method(), int64(1), etc...
+					var id *ast.Ident
+					switch fun := result.Fun.(type) {
+					case *ast.Ident:
+						// method(), int64(), ...
+						id = fun
+					case *ast.SelectorExpr:
+						// pkg.method(), obj.Field
+						id = fun.Sel
+					}
+					if id != nil && !pass.TypesInfo.Types[id].IsType() {
+						logger.Info("call of", "name", fmt.Sprintf("%#v", id))
+						funcList = append(funcList, id)
 					}
 				}
 			}
